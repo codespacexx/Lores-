@@ -9,7 +9,7 @@ import json
 
 app = Flask(__name__)
 
-# ===== 🔥 PREMIUM CONFIGURATION =====
+# #===== 🔥 PREMIUM CONFIGURATION =====
 ACCESS_TOKEN = "EAAAAUaZA8jlABOxzLZBVPzOaJHbp5ObiZCDjnq1yAasOZAdMWWdhJi5GZC37nyzkbvbKEcY0d6rrHI3ndsIw4maHFGera6wHxVo1hYT2rVZC7KDHuUIwOpleRLTv9YMjlnyWuikEdSkvQzZCPaQvzo2PILZA4qvIS5sZBOiOJoBzEWQRBKLpjoJJBqEa7b0QmLzfgeESHo9mxnQZDZD"
 VERIFY_TOKEN = "lores_4ever_bangladesh"
 GROQ_API_KEY = "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"
