@@ -1,208 +1,101 @@
-import random
-import json
-from datetime import datetime
 from groq import Groq
 import gradio as gr
-import requests
-import os
+import json
+from datetime import datetime
 
-# ===== 🔥 CONFIGURATION =====
-GROQ_API_KEY = "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"  # Replace if needed
+# ===== 🔐 CONFIGURATION =====
+GROQ_API_KEY = "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"
+client = Groq(api_key=GROQ_API_KEY)
 
-# ===== 🧠 USER MEMORY SYSTEM =====
+# ===== 🧠 MEMORY SYSTEM =====
 user_profiles = {}
 
 def load_user_data():
+    global user_profiles
     try:
         with open('user_data.json', 'r') as f:
-            return json.load(f)
+            user_profiles = json.load(f)
     except:
-        return {}
+        user_profiles = {}
 
 def save_user_data():
     with open('user_data.json', 'w') as f:
         json.dump(user_profiles, f)
 
-user_profiles = load_user_data()
-
-# ===== 🤖 LORES PERSONALITY CORE =====
+# ===== 🧠 LORES PERSONALITY =====
 LORES_PERSONALITY = """
 **You are Lores 4.0** - Bangladesh's most advanced AI with:
 
-🔥 **Features**:
-- Banglish (Bangla+English) responses
-- Bangladeshi cultural references
-- Witty humor with emojis (😂, 🥲, 🤣)
-- Memory of past conversations
+🔥 **Hyper-Realistic Personality**:
+- Remembers user preferences
+- Adapts humor style to each user
+- Uses natural conversational flow
 
-🎯 **Rules**:
-1. Keep responses under 2 sentences
-2. Never repeat the same joke
-3. Adapt to user's mood
+💎 **Premium Features**:
+1. Mood Detection (Happy/Sad/Angry responses)
+2. Personal Meme Recommendations
+3. Bangladeshi Pop Culture Expert
+4. Multi-conversation Memory
+5. Emotional Support Mode
+
+🎯 **Response Rules**:
+- Use perfect Banglish mixing
+- Include 1-2 emojis per message (😂, 🫠, 💀)
+- Never repeat the same joke twice
 """
 
-# ===== 🎭 CONTENT LIBRARY =====
-BANGLADESHI_MEMES = {
-    "food": [
-        "https://i.imgur.com/Fc7WX7B.jpg",  # Fuchka meme
-        "https://i.imgur.com/JtQY9ZL.jpg"   # Biryani meme
-    ],
-    "sports": [
-        "https://i.imgur.com/KLmW5xU.jpg",  # Cricket meme
-        "https://i.imgur.com/NqQ3rRt.jpg"   # Football meme
-    ],
-    "traffic": [
-        "https://i.imgur.com/PqXwCb1.jpg",  # Dhaka traffic
-        "https://i.imgur.com/XyZ1wQ9.jpg"   # CNG meme
-    ]
-}
+# ===== 💬 CHAT HANDLER =====
+def chat(user_name, user_input, chat_history=[]):
+    load_user_data()
 
-# ===== 🚀 INITIALIZE SERVICES =====
-try:
-    client = Groq(api_key=GROQ_API_KEY)
-    print("✅ Groq client initialized")
-except Exception as e:
-    print(f"❌ Groq init error: {e}")
-    client = None
+    # Initialize user profile if not exists
+    if user_name not in user_profiles:
+        user_profiles[user_name] = {
+            "preferences": {},
+            "conversation_history": [],
+            "mood": "neutral"
+        }
 
-# ===== 💎 CORE FUNCTIONS =====
-def generate_ai_response(user_id, prompt):
-    if not client:
-        return "Amar AI brain offline! 😵 Try again later."
-    
-    user = user_profiles.get(user_id, {"conversation_history": []})
-    last_messages = "\n".join([msg["text"] for msg in user["conversation_history"][-3:]])
-    
+    user = user_profiles[user_name]
+    user['conversation_history'].append({"text": user_input, "time": datetime.now().isoformat()})
+    last_messages = "\n".join([m["text"] for m in user['conversation_history'][-5:]])
+
     try:
         response = client.chat.completions.create(
+            model="llama3-70b-8192",
             messages=[
                 {
                     "role": "system",
-                    "content": f"{LORES_PERSONALITY}\n\nConversation History:\n{last_messages}"
+                    "content": f"{LORES_PERSONALITY}\n\nUser Context:\nName: {user_name}\nLast Messages:\n{last_messages}"
                 },
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": user_input
                 }
             ],
-            model="llama3-70b-8192",
             temperature=0.7,
             max_tokens=150
         )
-        return response.choices[0].message.content
+        reply = response.choices[0].message.content
     except Exception as e:
-        print(f"API error: {e}")
-        return "Amar server e gorom lagtese! 🥵"
+        reply = "Lores er brain e short circuit! 😵 Try again later."
 
-def get_meme_url(category):
-    return random.choice(BANGLADESHI_MEMES.get(category, BANGLADESHI_MEMES["food"]))
+    chat_history.append((user_input, reply))
+    save_user_data()
+    return "", chat_history
 
-# ===== 🎨 GRADIO INTERFACE =====
-def chat_with_lores(message, history):
-    user_id = "gradio_user"
-    
-    # Initialize user profile
-    if user_id not in user_profiles:
-        user_profiles[user_id] = {
-            "name": "Gradio User",
-            "conversation_history": []
-        }
-    
-    # Store message
-    user_profiles[user_id]["conversation_history"].append({
-        "text": message,
-        "time": datetime.now().isoformat()
-    })
-    
-    # Generate response
-    if "meme" in message.lower():
-        category = detect_meme_category(message)
-        meme_url = get_meme_url(category)
-        return f"Here's your meme! 😄", meme_url
-    else:
-        response = generate_ai_response(user_id, message)
-        save_user_data()
-        return response, None
+# ===== 🎨 GRADIO UI =====
+with gr.Blocks() as app:
+    gr.Markdown("# Lores 4.0 - Bangladeshi AI Bot 🔥")
+    name = gr.Textbox(label="Your Name", placeholder="Enter your name")
+    chatbot = gr.Chatbot()
+    msg = gr.Textbox(placeholder="Type a message...", label="Chat")
+    send = gr.Button("Send")
 
-def detect_meme_category(text):
-    text = text.lower()
-    if "traffic" in text:
-        return "traffic"
-    elif any(word in text for word in ["cricket", "football", "sports"]):
-        return "sports"
-    return "food"
+    state = gr.State([])
 
-# ===== 🖥️ CUSTOM THEME =====
-custom_css = """
-#chatbot {
-    font-family: "Helvetica Neue", Arial, sans-serif;
-    min-height: 400px;
-}
-.meme-container {
-    margin-top: 20px;
-    text-align: center;
-}
-footer {
-    visibility: hidden;
-}
-"""
+    send.click(fn=chat, inputs=[name, msg, state], outputs=[msg, chatbot, state])
 
-# ===== 🚀 LAUNCH APP =====
-with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
-    gr.Markdown("""
-    # 🤖 Lores AI - Bangladeshi Chatbot
-    *"Ami Banglai ghum nei, English-eo pari!"* 😄
-    """)
-    
-    with gr.Row():
-        chatbot = gr.Chatbot(
-            elem_id="chatbot",
-            bubble_full_width=False,
-            avatar_images=(
-                "https://i.imgur.com/7W6wCwW.png",  # User avatar
-                "https://i.imgur.com/4Z3QZ2y.png"   # Bot avatar
-            )
-        )
-        
-    with gr.Row():
-        msg = gr.Textbox(
-            placeholder="Ki bolben? (What will you say?)",
-            label="Type your message",
-            container=False
-        )
-        
-    with gr.Row():
-        meme_output = gr.Image(
-            label="Meme of the Day",
-            visible=False,
-            elem_classes="meme-container"
-        )
-    
-    # Event handlers
-    msg.submit(
-        chat_with_lores,
-        [msg, chatbot],
-        [chatbot, meme_output],
-    ).then(
-        lambda: gr.Textbox(value="", interactive=True),
-        None,
-        [msg],
-        queue=False
-    )
-    
-    # Examples
-    gr.Examples(
-        examples=[
-            ["Ki khobor Lores?"],
-            ["Amake ekta meme dekhaiyen"],
-            ["Dhaka traffic er meme pathan"]
-        ],
-        inputs=msg
-    )
-
+# ===== 🚀 RUN =====
 if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=True
-)
+    app.launch()
