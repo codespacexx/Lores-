@@ -1,5 +1,5 @@
+import streamlit as st
 from groq import Groq
-import gradio as gr
 import json
 from datetime import datetime
 
@@ -45,10 +45,9 @@ LORES_PERSONALITY = """
 """
 
 # ===== 💬 CHAT HANDLER =====
-def chat(user_name, user_input, chat_history=[]):
+def chat(user_name, user_input):
     load_user_data()
 
-    # Initialize user profile if not exists
     if user_name not in user_profiles:
         user_profiles[user_name] = {
             "preferences": {},
@@ -80,22 +79,25 @@ def chat(user_name, user_input, chat_history=[]):
     except Exception as e:
         reply = "Lores er brain e short circuit! 😵 Try again later."
 
-    chat_history.append((user_input, reply))
     save_user_data()
-    return "", chat_history
+    return reply
 
-# ===== 🎨 GRADIO UI =====
-with gr.Blocks() as app:
-    gr.Markdown("# Lores 4.0 - Bangladeshi AI Bot 🔥")
-    name = gr.Textbox(label="Your Name", placeholder="Enter your name")
-    chatbot = gr.Chatbot()
-    msg = gr.Textbox(placeholder="Type a message...", label="Chat")
-    send = gr.Button("Send")
+# ===== 🖥️ STREAMLIT UI =====
+st.set_page_config(page_title="Lores 4.0 - Bangladeshi AI Bot", layout="centered")
+st.title("🔥 Lores 4.0 - Bangladeshi AI Bot")
 
-    state = gr.State([])
+user_name = st.text_input("Your Name", placeholder="Enter your name")
 
-    send.click(fn=chat, inputs=[name, msg, state], outputs=[msg, chatbot, state])
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# ===== 🚀 RUN =====
-if __name__ == "__main__":
-    app.launch()
+user_input = st.text_input("Message", placeholder="Type your message...")
+
+if st.button("Send") and user_input and user_name:
+    reply = chat(user_name, user_input)
+    st.session_state.chat_history.append(("You", user_input))
+    st.session_state.chat_history.append(("Lores", reply))
+
+# Display chat history
+for speaker, message in st.session_state.chat_history:
+    st.markdown(f"**{speaker}:** {message}")
