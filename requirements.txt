@@ -1,5 +1,5 @@
 flask==3.0.2
-gradio
+streamlit
 requests==2.31.0
 groq==0.5.0
 python-dotenv==1.0.0
